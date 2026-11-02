@@ -80,8 +80,21 @@ end
 alias nemo=/usr/local/bin/nemo
 ```
 
-`build.sh install` 结束时会检测一次：如果 `command -v nemo` 不是 `/usr/local/bin/nemo`，
-会打印提示，但**不会修改你的 shell 配置**。
+`build.sh install` 结束时会自动检测。如果 `command -v nemo` 不是 `/usr/local/bin/nemo`：
+
+- 能识别出你的 shell（fish / bash / zsh）→ **问你一句**「是否让脚本加一段配置」，
+  回答 y 就写进对应的 rc 文件，并带上 `# >>> nemo-dim-hidden >>>` 标记；
+- 非交互运行（管道、CI）→ 不会改你的配置，只打印手动方案；
+  想强制自动写，用 `NEMO_PATHFIX_YES=1 ./build.sh install`；
+- 识别不出 shell，或你回答 n → 打印三条手动方案（见上）。
+
+随时可以单独跑这段逻辑，不必重新构建：
+
+```bash
+./build.sh pathfix
+```
+
+`./build.sh uninstall` 会把这段带标记的配置一起删掉。
 
 ## 卸载（回退到 pacman 的版本）
 
