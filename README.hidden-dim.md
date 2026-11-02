@@ -50,6 +50,39 @@ pgrep -a -x nemo          # 应该是 /usr/local/bin/nemo
 /usr/local/bin/nemo --version
 ```
 
+## 终端里的 `nemo` 为什么可能还是系统版
+
+安装脚本只负责**菜单 / 双击目录 / D-Bus** 这几条路径，它们靠 desktop 文件里的绝对
+`/usr/local/bin/nemo` 保证。终端里敲 `nemo` 走的是 PATH 解析，取决于你的 shell / 会话环境：
+
+```bash
+which -a nemo
+# /usr/bin/nemo          ← PATH 里 /usr/bin 在前时会命中系统版（没有补丁）
+# /usr/local/bin/nemo
+```
+
+三种处理方式，任选其一：
+
+```bash
+# 1. 最省事：写绝对路径
+/usr/local/bin/nemo ~/某个目录
+
+# 2. 把 /usr/local/bin 提到 PATH 前面（Arch 默认 /etc/profile 本来就是这么排的）
+fish_add_path --move-to-front /usr/local/bin      # fish
+export PATH=/usr/local/bin:$PATH                  # bash/zsh
+
+# 3. 只给 nemo 单独指路，不动全局 PATH
+# fish: ~/.config/fish/config.fish
+function nemo
+    command /usr/local/bin/nemo $argv
+end
+# bash: ~/.bashrc
+alias nemo=/usr/local/bin/nemo
+```
+
+`build.sh install` 结束时会检测一次：如果 `command -v nemo` 不是 `/usr/local/bin/nemo`，
+会打印提示，但**不会修改你的 shell 配置**。
+
 ## 卸载（回退到 pacman 的版本）
 
 ```bash
