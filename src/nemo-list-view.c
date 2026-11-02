@@ -52,6 +52,7 @@
 #include <libnemo-private/nemo-column-utilities.h>
 #include <libnemo-private/nemo-dnd.h>
 #include <libnemo-private/nemo-file-dnd.h>
+#include <libnemo-private/nemo-file.h>
 #include <libnemo-private/nemo-file-utilities.h>
 #include <libnemo-private/nemo-ui-utilities.h>
 #include <libnemo-private/nemo-global-preferences.h>
@@ -1733,6 +1734,12 @@ cell_renderer_editing_canceled (GtkCellRendererText *cell,
 				NemoListView    *view)
 {
     view->details->editable_widget = NULL;
+
+	/* Make the filename-cells readonly again, see start_renaming_file(). */
+	g_object_set (G_OBJECT (view->details->file_name_cell),
+		      "editable", FALSE,
+		      NULL);
+
 	nemo_view_set_is_renaming (NEMO_VIEW (view), FALSE);
 	nemo_view_unfreeze_updates (NEMO_VIEW (view));
 }
@@ -2242,6 +2249,114 @@ apply_columns_settings (NemoListView *list_view,
     g_list_free (view_columns);
 }
 
+static gboolean
+cell_sensitive_for_model (GtkTreeModel *model,
+                          GtkTreeIter  *iter)
+{
+    NemoFile *file;
+    gboolean sensitive;
+
+    gtk_tree_model_get (model, iter,
+                        NEMO_LIST_MODEL_FILE_COLUMN, &file,
+                        -1);
+
+    if (file == NULL) {
+        return TRUE;
+    }
+
+    sensitive = !nemo_file_is_hidden_file (file);
+    nemo_file_unref (file);
+
+    return sensitive;
+}
+
+/* GTK refuses to activate (i.e. start editing) a cell renderer that is
+ * insensitive, so the renderer that is about to be renamed or is being
+ * renamed always stays sensitive. */
+static gboolean
+cell_renderer_is_edit_target (GtkCellRenderer *renderer)
+{
+    gboolean editing = FALSE;
+    gboolean editable = FALSE;
+
+    if (GTK_IS_CELL_RENDERER_TEXT (renderer)) {
+        g_object_get (renderer,
+                      "editing", &editing,
+                      "editable", &editable,
+                      NULL);
+    }
+
+    return editing || editable;
+}
+
+static void
+hidden_dim_cell_data_func (GtkTreeViewColumn *column,
+                           GtkCellRenderer   *renderer,
+                           GtkTreeModel      *model,
+                           GtkTreeIter       *iter,
+                           gpointer           data)
+{
+    g_object_set (renderer,
+                  "sensitive", cell_renderer_is_edit_target (renderer) ||
+                               cell_sensitive_for_model (model, iter),
+                  NULL);
+}
+
+/* GtkCellRendererPixbuf ignores the renderer's "sensitive" state, so the file
+ * name column's icon is painted at half opacity here when the row is dimmed,
+ * to match the dimmed file name label. */
+typedef struct {
+    GtkCellRendererPixbuf parent_instance;
+} NemoDimCellRendererPixbuf;
+
+typedef struct {
+    GtkCellRendererPixbufClass parent_class;
+} NemoDimCellRendererPixbufClass;
+
+G_DEFINE_TYPE (NemoDimCellRendererPixbuf, nemo_dim_cell_renderer_pixbuf, GTK_TYPE_CELL_RENDERER_PIXBUF)
+
+static void
+nemo_dim_cell_renderer_pixbuf_render (GtkCellRenderer      *cell,
+                                      cairo_t              *cr,
+                                      GtkWidget            *widget,
+                                      const GdkRectangle   *background_area,
+                                      const GdkRectangle   *cell_area,
+                                      GtkCellRendererState  flags)
+{
+    GtkCellRendererClass *parent_class = GTK_CELL_RENDERER_CLASS (nemo_dim_cell_renderer_pixbuf_parent_class);
+    gboolean dim = !gtk_cell_renderer_get_sensitive (cell);
+
+    if (dim) {
+        cairo_push_group (cr);
+    }
+
+    parent_class->render (cell, cr, widget, background_area, cell_area, flags);
+
+    if (dim) {
+        cairo_pop_group_to_source (cr);
+        cairo_paint_with_alpha (cr, 0.5);
+    }
+}
+
+static void
+nemo_dim_cell_renderer_pixbuf_class_init (NemoDimCellRendererPixbufClass *klass)
+{
+    GtkCellRendererClass *cell_class = GTK_CELL_RENDERER_CLASS (klass);
+
+    cell_class->render = nemo_dim_cell_renderer_pixbuf_render;
+}
+
+static void
+nemo_dim_cell_renderer_pixbuf_init (NemoDimCellRendererPixbuf *pixbuf)
+{
+}
+
+static GtkCellRenderer *
+nemo_dim_cell_renderer_pixbuf_new (void)
+{
+    return g_object_new (nemo_dim_cell_renderer_pixbuf_get_type (), NULL);
+}
+
 static void
 filename_cell_data_func (GtkTreeViewColumn *column,
 			 GtkCellRenderer   *renderer,
@@ -2281,6 +2396,8 @@ filename_cell_data_func (GtkTreeViewColumn *column,
 		      NULL);
 
     g_free (text);
+
+    hidden_dim_cell_data_func (column, renderer, model, iter, NULL);
 }
 
 static gboolean
@@ -2660,7 +2777,7 @@ create_and_set_up_tree_view (NemoListView *view)
 		 * has the icon in it.*/
 		if (!strcmp (name, "name")) {
 			/* Create the file name column */
-			cell = gtk_cell_renderer_pixbuf_new ();
+			cell = nemo_dim_cell_renderer_pixbuf_new ();
 			view->details->pixbuf_cell = (GtkCellRendererPixbuf *)cell;
 
 			view->details->file_name_column = gtk_tree_view_column_new ();
@@ -2696,6 +2813,9 @@ create_and_set_up_tree_view (NemoListView *view)
 							     cell,
 							     "surface", NEMO_LIST_MODEL_SMALLEST_ICON_COLUMN,
 							     NULL);
+			gtk_tree_view_column_set_cell_data_func (view->details->file_name_column, cell,
+								 hidden_dim_cell_data_func,
+								 NULL, NULL);
 
 			cell = gtk_cell_renderer_text_new ();
 			view->details->file_name_cell = (GtkCellRendererText *)cell;
@@ -2743,6 +2863,9 @@ create_and_set_up_tree_view (NemoListView *view)
                                                  "text", column_num,
                                                  "weight", NEMO_LIST_MODEL_TEXT_WEIGHT_COLUMN,
                                                  NULL);
+            gtk_tree_view_column_set_cell_data_func (column, cell,
+                                                     hidden_dim_cell_data_func,
+                                                     NULL, NULL);
 
             gtk_tree_view_append_column (view->details->tree_view, column);
             gtk_tree_view_column_set_min_width (column, 30);
