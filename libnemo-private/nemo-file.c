@@ -3327,6 +3327,12 @@ nemo_file_compare_for_sort_internal (NemoFile *file_1,
         return +1;
     }
 
+	/* Hidden files are always sorted last, regardless of the sort direction,
+	 * so they stay out of the way when "show hidden files" is on. */
+	if (file_1->details->is_hidden != file_2->details->is_hidden) {
+		return file_1->details->is_hidden ? 1 : -1;
+	}
+
 	if (directories_first) {
 		is_directory_1 = nemo_file_is_directory (file_1);
 		is_directory_2 = nemo_file_is_directory (file_2);
