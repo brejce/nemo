@@ -78,6 +78,8 @@ double      nemo_icon_canvas_item_get_max_text_width       (NemoIconCanvasItem  
 const char *nemo_icon_canvas_item_get_editable_text        (NemoIconCanvasItem       *icon_item);
 void        nemo_icon_canvas_item_set_renaming             (NemoIconCanvasItem       *icon_item,
 								gboolean                      state);
+void        nemo_icon_canvas_item_set_hidden               (NemoIconCanvasItem       *icon_item,
+								gboolean                      is_hidden);
 
 /* geometry and hit testing */
 gboolean    nemo_icon_canvas_item_hit_test_rectangle       (NemoIconCanvasItem       *item,

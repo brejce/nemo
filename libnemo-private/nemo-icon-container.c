@@ -8124,6 +8124,8 @@ nemo_icon_container_update_icon (NemoIconContainer *container,
     if (icon != NULL) {
         NemoFile *file = NEMO_FILE (icon->data);
 
+        nemo_icon_canvas_item_set_hidden (icon->item, nemo_file_is_hidden_file (file));
+
         ok = icon->ok_to_show_thumb ||
              (nemo_file_get_load_deferred_attrs (file) == NEMO_FILE_LOAD_DEFERRED_ATTRS_PRELOAD);
     }

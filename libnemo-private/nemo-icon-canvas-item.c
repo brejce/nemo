@@ -111,6 +111,7 @@ struct NemoIconCanvasItemDetails {
 	guint rendered_is_focused : 1;
 
 	guint is_renaming : 1;
+	guint is_hidden : 1;
 
 	guint bounds_cached : 1;
 
@@ -1056,6 +1057,7 @@ draw_label_text (NemoIconCanvasItem *item,
 	base_state = gtk_widget_get_state_flags (GTK_WIDGET (container));
 	base_state &= ~(GTK_STATE_FLAG_SELECTED |
 			GTK_STATE_FLAG_PRELIGHT);
+
 	state = base_state;
 
 	gtk_widget_style_get (GTK_WIDGET (container),
@@ -1373,6 +1375,11 @@ nemo_icon_canvas_item_draw (EelCanvasItem *item,
 		return;
 	}
 
+	/* Dim the icon and its label as a whole for hidden files. */
+	if (details->is_hidden) {
+		cairo_push_group (cr);
+	}
+
 	context = gtk_widget_get_style_context (GTK_WIDGET (container));
 	gtk_style_context_save (context);
 
@@ -1393,6 +1400,11 @@ nemo_icon_canvas_item_draw (EelCanvasItem *item,
 	draw_label_text (icon_item, cr, icon_rect);
 
 	gtk_style_context_restore (context);
+
+	if (details->is_hidden) {
+		cairo_pop_group_to_source (cr);
+		cairo_paint_with_alpha (cr, 0.5);
+	}
 }
 
 #define ZERO_WIDTH_SPACE "\xE2\x80\x8B"
@@ -1980,6 +1992,20 @@ nemo_icon_canvas_item_set_renaming (NemoIconCanvasItem *item, gboolean state)
 	}
 
 	item->details->is_renaming = state;
+	eel_canvas_item_request_update (EEL_CANVAS_ITEM (item));
+}
+
+void
+nemo_icon_canvas_item_set_hidden (NemoIconCanvasItem *item, gboolean is_hidden)
+{
+	g_return_if_fail (NEMO_IS_ICON_CANVAS_ITEM (item));
+
+	if (item->details->is_hidden == is_hidden) {
+		return;
+	}
+
+	item->details->is_hidden = is_hidden;
+
 	eel_canvas_item_request_update (EEL_CANVAS_ITEM (item));
 }
 
