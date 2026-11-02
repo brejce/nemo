@@ -1,3 +1,7 @@
+> **本分支（hidden-dim-6.6.4）是打了补丁的个人构建**：隐藏文件在三视图里 50% 淡显、并排在最后。
+> 中文说明见 [README.hidden-dim.md](README.hidden-dim.md)。
+> 以下是上游 linuxmint/nemo 的原始 README。
+
 ![build](https://github.com/linuxmint/nemo/actions/workflows/build.yml/badge.svg)
 
 Nemo
