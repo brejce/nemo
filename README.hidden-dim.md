@@ -1,26 +1,29 @@
 # nemo-dim-hidden（中文说明）
 
-给 Nemo 文件管理器加两个小改动：
+给 Nemo 文件管理器加三个小改动：
 
 1. **隐藏文件淡显**：以 `.` 开头的文件和文件夹，在**图标视图、紧凑视图、列表视图**里
    统一降到 50% 透明度（图标 + 文件名），像"半隐身"，但仍然可见、可点、可改名。
    列表中只用主题自带的灰色（insensitive）。
 2. **隐藏文件排最后**：排序时隐藏项一律排到非隐藏项之后，正序倒序都是。
    顺序为：可见目录 → 可见文件 → 隐藏目录 → 隐藏文件。
+3. **侧栏 tree view 永远不显示隐藏项**：上游行为是"跟随 Ctrl+H"，开了显示隐藏文件
+   之后目录树里也会冒出 `.xxx`；这里改成目录树恒定干净，开关只作用于列表/图标视图。
 
-`Ctrl+H` 行为不变，补丁只在"显示隐藏文件"打开时才看得出来。
+`Ctrl+H` 的开关语义没变，只是不再影响侧栏的目录树。
 
 ## 仓库与分支
 
 - fork：https://github.com/brejce/nemo
-- 分支：`hidden-dim-6.6.4`，基于上游 tag `6.6.4`，上面挂 3 个提交
-- 改动合计：4 个文件、约 +155 行
+- 分支：`hidden-dim-6.6.4`，基于上游 tag `6.6.4`，上面挂 4 个代码提交（外加文档提交）
+- 改动合计：5 个文件、约 +165 行
 
 | 提交 | 内容 |
 | --- | --- |
 | `989d72a` icon view: dim hidden files | `libnemo-private/nemo-icon-canvas-item.{c,h}`、`nemo-icon-container.c`：canvas item 加 `is_hidden` 标志，绘制时整块 `cairo_push_group` + `cairo_paint_with_alpha(0.5)` |
 | `aab0d6a` list view: dim hidden files | `src/nemo-list-view.c`：所有文字列用 cell data func 设 `sensitive=FALSE`；Name 列图标用一个内嵌 `GtkCellRendererPixbuf` 子类做 50% alpha（GTK3 的 pixbuf renderer 不认 sensitive）；带 `editable` guard 以免隐藏文件改不了名 |
 | `6ec9549` sort hidden files last | `libnemo-private/nemo-file.c`：在比较函数里把 hidden 作为分组键，插在"目录优先"之前 |
+| `6dc39db` tree sidebar: never show hidden files | `src/nemo-tree-sidebar.c`：`update_filtering_from_preferences()` 里把 `fm_tree_model_set_show_hidden_files()` 恒传 FALSE（传 FALSE 会同时销毁已有的隐藏行） |
 
 ## 构建与安装
 
