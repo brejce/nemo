@@ -1595,16 +1595,13 @@ create_tree (FMTreeView *view)
 static void
 update_filtering_from_preferences (FMTreeView *view)
 {
-    NemoWindowShowHiddenFilesMode mode;
-
     if (view->details->child_model == NULL) {
         return;
     }
 
-    mode = nemo_window_get_hidden_files_mode (view->details->window);
-
-    fm_tree_model_set_show_hidden_files (view->details->child_model,
-                                         mode == NEMO_WINDOW_SHOW_HIDDEN_FILES_ENABLE);
+    /* The tree sidebar never shows hidden items; this is independent of the
+     * window's "show hidden files" toggle. */
+    fm_tree_model_set_show_hidden_files (view->details->child_model, FALSE);
 
     fm_tree_model_set_show_only_directories (view->details->child_model,
                                              g_settings_get_boolean (nemo_tree_sidebar_preferences,
